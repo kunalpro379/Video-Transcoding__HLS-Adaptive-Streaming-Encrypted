@@ -1,0 +1,30 @@
+{
+  "name": "video-transcoding-pipeline",
+  "version": "1.0.0",
+  "description": "A video transcoding pipeline container",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
+    "start": "node index.js"
+  },
+  "author": "",
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.705.0",
+    "@aws-sdk/client-sqs": "^3.616.0",
+    "aws-lambda": "^1.0.7",
+    "dotenv": "^16.4.7",
+    "ffmpeg": "latest",
+    "fluent-ffmpeg": "^2.1.3",
+    "stream": "^0.0.3",
+    "tsc-watch": "^4.5.0",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.71",
+    "@types/aws-sdk": "^2.7.0",
+    "ts-node": "^10.9.2"
+  }
+}

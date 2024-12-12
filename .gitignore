@@ -1,0 +1,8 @@
+/TranscodeContainer/node_modules/
+/TranscodeContainer/.env
+
+/VideoConsumer/node_modules/
+/VideoConsumer/.env
+
+/HLSContainer/.env
+/HLSContainer/node_modules

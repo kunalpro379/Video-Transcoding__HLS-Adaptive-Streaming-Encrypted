@@ -1,197 +1,56 @@
-Video Transcoding and S3 Upload Automation
-Overview
+# DRM protected Video Transcoding and HLS Streaming 
+
+![WhatsApp Image 2024-12-13 at 05 53 06_707ea432](https://github.com/user-attachments/assets/9fe98287-1705-424d-bdaf-864b58766043)
+
+## Overview
 This project automates the video transcoding process by downloading videos from AWS S3, converting them to multiple resolutions, and uploading the transcoded files back to S3. It supports creating multiple video formats including MP4 and HLS (HTTP Live Streaming).
-Features
-
-Download videos from AWS S3
-Transcode videos to multiple resolutions:
-
-240p
-480p
-720p
-1080p
-1440p
-
-
-Convert videos to HLS format
-Automatic upload of transcoded files to S3
-Cleanup of temporary local files
-
-Prerequisites
-Before getting started, ensure you have the following:
-
-AWS Account
-AWS S3 Bucket for source and transcoded videos
-Node.js (v18.x or above)
-NPM
-FFmpeg
-AWS CLI (optional, but recommended)
-
-Installation
-
-Clone the repository:
-bashCopygit clone <your-repo-url>
-cd <project-directory>
-
-Install dependencies:
-bashCopynpm install
-
-
-Configuration
-Create a .env file in the project root with the following environment variables:
-envCopyAWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-S3_BUCKET=your_source_bucket_name
-TRANSCODED_S3_BUCKET=your_transcoded_bucket_name
-S3_KEY=path/to/your/source/video.mp4
-AWS S3 Setup
-
-Create two S3 buckets:
-
-One for source videos
-One for transcoded videos
-
-
-Configure IAM Permissions:
-Create an IAM policy with the following permissions:
-
-s3:GetObject
-s3:PutObject
 
 
 
-Docker Support
-A Dockerfile is provided to containerize the application. To build and run:
-bashCopy# Build the Docker image
-docker build -t video-transcoder .
+# Video Processing and Streaming Pipeline
 
-# Run the container
-docker run -env-file .env video-transcoder
-Transcoding Process
-The script performs the following steps:
+This document outlines the **video processing and streaming pipeline** used to handle raw video uploads, video encoding, segmentation, encryption, and delivery through a Content Delivery Network (CDN). The process leverages AWS S3, SQS, FFMPEG, and HLS for efficient video management and adaptive streaming.
 
-Download video from S3
-Transcode video to:
+## Pipeline Workflow
 
-Multiple MP4 resolutions
-HLS format
+### 1. Admin Uploads Raw Video
+- **Admin Interface**: An administrator uploads a raw video file to an AWS **Temp Bucket** (temporary storage on S3).
+- **Temp Bucket**: This bucket temporarily stores the raw video before any processing begins.
 
+### 2. SQS Event Trigger
+- **SQS (Simple Queue Service)**: Once the raw video is uploaded to the temp bucket, it triggers an event to a **process queue** (likely an SQS queue). This queue holds tasks or jobs for processing the video.
 
-Upload transcoded files to S3
-Clean up temporary local files
+### 3. Video Processing Queue
+- **Process Queue**: The SQS queue holds a task for processing the uploaded video. This task is picked up by the **Consumers** that are responsible for processing videos.
 
-Troubleshooting
-Common Issues
+### 4. Consumers Poll the Queue
+- **Consumers**: These are microservices or containers that constantly poll the process queue for new tasks. Each consumer fetches the video processing job, which can involve tasks like validation, encoding, and transformations.
+- **Validations**: The consumer checks the uploaded video file for correctness (file type, no corruption, etc.).
 
-FFmpeg Errors: Verify FFmpeg installation
-bashCopyffmpeg -version
+### 5. Spinning Up FFMPEG for Video Processing
+- **FFMPEG**: FFMPEG (a multimedia framework) is used to encode the video into multiple resolutions (360p, 420p, 720p, etc.) for adaptive streaming. Each resolution is converted into an M3U8 playlist file.
+- **Node.js**: The video processing happens inside a Docker container with a Node.js environment (`node:18-alpine`).
+- **FFMPEG Commands**: FFMPEG is used to process the video into different quality levels (e.g., 360p, 420p, 720p, 1080p), storing them as M3U8 files (a format used for HLS - HTTP Live Streaming).
 
-AWS Credentials: Ensure correct environment variables
-Permissions: Check IAM user S3 bucket permissions
+### 6. Video Segmentation
+- After encoding, FFMPEG splits the video into smaller chunks (e.g., `segment_001.ts`, `segment_002.ts`). These small segments are crucial for **adaptive bitrate streaming**, allowing users to switch between video qualities based on their network speed.
 
-Technologies Used
+### 7. Production Bucket
+- **Production Bucket**: After encoding and segmentation, the final video and its segments are stored in the **Production Bucket** on S3.
+- This bucket holds all processed videos and files that are ready for delivery to users.
 
-Node.js
-AWS SDK
-FFmpeg
-Docker
+### 8. Master Index and HLS
+- **Master Index**: A master playlist file that references all the different quality levels (360p, 420p, 720p, 1080p, etc.) and segments. This file serves as a central point for adaptive streaming.
+- **HLS (HTTP Live Streaming)**: HLS is a streaming protocol that serves video content over HTTP. The M3U8 playlist file, along with the video segments, are essential for HLS delivery. The master index file is used by the client to determine which video segment to download based on the user's network speed.
 
-Contributing
+### 9. Encryption
+- **Encryption**: Before the video content is delivered, it may be encrypted for secure distribution. This process typically involves the use of encryption keys, often managed by AWS KMS (Key Management Service).
 
-Fork the repository
-Create your feature branch (git checkout -b feature/AmazingFeature)
-Commit your changes (git commit -m 'Add some AmazingFeature')
-Push to the branch (git push origin feature/AmazingFeature)
-Open a Pull Request
+### 10. Content Delivery Network (CDN)
+- **CDN**: The processed video files and segments are distributed through a **CDN** for efficient content delivery to end users. The CDN caches content in edge locations near the user, ensuring fast and low-latency video streaming.
 
+### 11. User Content Viewer
+- **User Interface**: End users access the videos through a content viewer. The videos are fetched from the CDN, which retrieves the appropriate video file or segment from the **Production Bucket**.
 
-Convert videos to HLS format
-Automatic upload of transcoded files to S3
-Cleanup of temporary local files
-
-Prerequisites
-Before getting started, ensure you have the following:
-
-AWS Account
-AWS S3 Bucket for source and transcoded videos
-Node.js (v18.x or above)
-NPM
-FFmpeg
-AWS CLI (optional, but recommended)
-
-Installation
-
-Clone the repository:
-bashCopygit clone <your-repo-url>
-cd <project-directory>
-
-Install dependencies:
-bashCopynpm install
-
-
-Configuration
-Create a .env file in the project root with the following environment variables:
-envCopyAWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-S3_BUCKET=your_source_bucket_name
-TRANSCODED_S3_BUCKET=your_transcoded_bucket_name
-S3_KEY=path/to/your/source/video.mp4
-AWS S3 Setup
-
-Create two S3 buckets:
-
-One for source videos
-One for transcoded videos
-
-
-Configure IAM Permissions:
-Create an IAM policy with the following permissions:
-
-s3:GetObject
-s3:PutObject
-
-
-
-Docker Support
-A Dockerfile is provided to containerize the application. To build and run:
-bashCopy# Build the Docker image
-docker build -t video-transcoder .
-
-# Run the container
-docker run -env-file .env video-transcoder
-Transcoding Process
-The script performs the following steps:
-
-Download video from S3
-Transcode video to:
-
-Multiple MP4 resolutions
-HLS format
-
-
-Upload transcoded files to S3
-Clean up temporary local files
-
-Troubleshooting
-Common Issues
-
-FFmpeg Errors: Verify FFmpeg installation
-bashCopyffmpeg -version
-
-AWS Credentials: Ensure correct environment variables
-Permissions: Check IAM user S3 bucket permissions
-
-Technologies Used
-
-Node.js
-AWS SDK
-FFmpeg
-Docker
-
-Contributing
-
-Fork the repository
-Create your feature branch (git checkout -b feature/AmazingFeature)
-Commit your changes (git commit -m 'Add some AmazingFeature')
-Push to the branch (git push origin feature/AmazingFeature)
-Open a Pull Request
+### 12. Admin Management
+- **Admin Interface**: The admin interface allows administrators to manage and monitor the entire video processing pipeline. This includes tasks such as uploading new videos, tracking the status of the processing queue, and ensuring smooth operation.

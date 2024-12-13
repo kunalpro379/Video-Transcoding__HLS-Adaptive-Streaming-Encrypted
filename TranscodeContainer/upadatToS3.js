@@ -10,7 +10,7 @@ const path = require('path');
         for(let file of files){
             const filePath=path.join(hlsDir, file);
             const putCommand=new PutObjectCommand({
-                Bucket: process.env.S3_BUCKET,
+                Bucket: process.env.TRANSCODED_S3_BUCKET,
                 Key: `${resolution.name}/${file}`,
                 Body: fs.createReadStream(filePath)
             });

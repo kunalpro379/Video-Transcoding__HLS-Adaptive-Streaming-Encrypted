@@ -1,12 +1,25 @@
+# Start from a base image
 FROM ubuntu:focal
 
-RUN /usr/bin/apt-get update && \
-    /usr/bin/apt-get install -y curl && \
-    curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
-    /usr/bin/apt-get update && \
-    /usr/bin/apt-get upgrade -y && \
-    /usr/bin/apt-get install -y nodejs ffmpeg
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y curl nodejs npm ffmpeg && \
+    curl -sL https://deb.nodesource.com/setup_18.x | bash && \
+    apt-get install -y awscli
 
-WORKDIR /home/app
+# Set working directory
+WORKDIR /app
 
-ENTRYPOINT [ "bash" ]
+# Copy package.json and package-lock.json for npm install
+COPY package.json . 
+
+# Install npm dependencies
+RUN npm install
+
+# Copy necessary application files
+COPY index.js . 
+COPY .env .env
+COPY main.sh . # Ensure your shell script is copied
+
+# Set the entrypoint to run the index.js with Node.js
+ENTRYPOINT ["node", "index.js"]

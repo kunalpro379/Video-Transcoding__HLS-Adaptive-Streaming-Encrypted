@@ -30,9 +30,10 @@ async function init() {
     Bucket: process.env.S3_BUCKET,
     Key: process.env.S3_KEY,
   });
+  const originalFileName = path.basename(process.env.S3_KEY);
 
   const result = await s3Client.send(command);
-  const originalFilePath = `original-video.mp4`;
+  const originalFilePath = `./${originalFileName}`;
 
   const transcodedDir = path.resolve("transcoded");
   if (!fs.existsSync(transcodedDir)) {
@@ -50,7 +51,9 @@ async function init() {
 
   // Start the transcoding process
   const promises = RESOLUTIONS.map((resolution) => {
-    const output = path.join(transcodedDir, `video-${resolution.name}.mp4`);
+    // const output = path.join(transcodedDir, `video-${resolution.name}.mp4`);
+    const output = path.join(transcodedDir, `${originalFileName}-${resolution.name}.mp4`);
+
     return new Promise((resolve, reject) => {
       ffmpeg(originalVideoPath)
         .output(output)
@@ -61,8 +64,8 @@ async function init() {
           console.log(`Transcoding finished for ${resolution.name}.`);
           try {
             const putCommand = new PutObjectCommand({
-              Bucket: process.env.S3_BUCKET,
-              Key: `transcoded/video-${resolution.name}.mp4`,
+              Bucket: process.env.TRANSCODED_S3_BUCKET,
+              Key: `transcoded/${originalFileName}/${originalFileName}-${resolution.name}.mp4`,
               Body: fs.createReadStream(output),
             });
             await s3Client.send(putCommand);
@@ -81,7 +84,16 @@ async function init() {
     });
   });
 
-
+  try {
+    await Promise.all(promises);
+    console.log("All transcoded videos uploaded successfully.");
+  } catch (err) {
+    console.error("Error during transcoding/upload process:", err);
+  } finally {
+    // Clean up local files if needed
+    fs.rmSync(originalFilePath, { force: true });
+    fs.rmSync(transcodedDir, { recursive: true, force: true });
+  }
 }
 
 init().catch((err) => {
